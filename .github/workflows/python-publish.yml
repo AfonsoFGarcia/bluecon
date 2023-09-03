@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   deploy:
-
+    name: Upload Package
     runs-on: ubuntu-latest
 
     steps:
