@@ -20,7 +20,7 @@ setup(
     description="Library for connecting to Fermax Blue supported doorbells",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/AfonsoFGarcia/bluecon",
+    url="https://bluecon.afonsogarcia.dev",
     author="Afonso Garcia",
     author_email="bluecon@afonsogarcia.dev",
     license="MIT",

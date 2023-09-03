@@ -9,7 +9,6 @@ theme:
   collapse_navigation: false
 
 nav:
-  - Home: index.md
   - Quickstart: quickstart.md
 
 markdown_extensions:
