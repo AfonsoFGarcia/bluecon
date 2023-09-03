@@ -27,11 +27,11 @@ blueConAPIClient = await BlueConAPI.create(username, password)
 Get user details:
 
 ```python
-userInfo = blueConAPIClient.getUserInfo()
+userInfo = await blueConAPIClient.getUserInfo()
 ```
 
 Get pairings for user:
 
 ```python
-userInfo = blueConAPIClient.getPairings()
+userInfo = await blueConAPIClient.getPairings()
 ```
