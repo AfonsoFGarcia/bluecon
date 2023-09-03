@@ -42,7 +42,7 @@ pairings = await blueConAPIClient.getPairings()
 
 Open door:
 
-```
+```python
 firstDoor = pairings[0]
 openDoorResult = await blueConAPIClient.openDoor(firstDoor.deviceId, firstDoor.accessDoorMap['ZERO'])
 ```
