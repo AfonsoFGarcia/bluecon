@@ -2,6 +2,7 @@ import aiohttp
 import base64
 import json
 from typing import List
+from bluecon.model.AccessDoor import AccessDoor
 
 from bluecon.model.Pairing import Pairing
 from bluecon.model.User import User
@@ -47,4 +48,13 @@ class BlueConAPI(object):
         
         async with aiohttp.ClientSession() as session:
             async with session.get('https://blue.fermax.com/user/api/v1/users/me', headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
-                return User.fromJson(await response.text())
+                return User(json.loads(await response.text()))
+    
+    async def openDoor(self, deviceId: str, door: AccessDoor) -> bool:
+        """Open the provided door"""
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f'https://blue.fermax.com/deviceaction/api/v1/device/{deviceId}/directed-opendoor',
+                                    json = door.getDirectOpenDoorParamsRequest(),
+                                    headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+                return response.status == 200

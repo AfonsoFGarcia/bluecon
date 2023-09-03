@@ -1,18 +1,10 @@
-from json import JSONEncoder, dumps, loads
+from bluecon.model.AccessDoor import AccessDoor
 
 
 class Pairing:
     def __init__(self, pairingResponseDictionary: dict):
+        self.id = pairingResponseDictionary['id']
+        self.deviceId = pairingResponseDictionary['deviceId']
+        print(pairingResponseDictionary['accessDoorMap'])
+        self.accessDoorMap = {k: AccessDoor(v) for k, v in pairingResponseDictionary['accessDoorMap'].items() if v['visible']}
         pass
-    
-    def toJson(self) -> str:
-        return dumps(self, cls = PairingJSONEncoder)
-    
-    @classmethod
-    def fromJson(csl, json: str):
-        return Pairing(loads(json))
-    
-class PairingJSONEncoder(JSONEncoder):
-    def default(self, o: Pairing):
-        return {
-        }

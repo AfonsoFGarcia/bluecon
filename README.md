@@ -1,8 +1,12 @@
 # BlueCon
 
-Library for connecting to Fermax Blue supported doorbells
+Library for connecting to Fermax Blue supported doorbells.
 
 **This library is still work in progress, do not use it for actual projects**
+
+Tested Devices:
+
+* Fermax Veo XS WiFi (9449)
 
 ## Installation
 
@@ -33,5 +37,12 @@ userInfo = await blueConAPIClient.getUserInfo()
 Get pairings for user:
 
 ```python
-userInfo = await blueConAPIClient.getPairings()
+pairings = await blueConAPIClient.getPairings()
+```
+
+Open door:
+
+```
+firstDoor = pairings[0]
+openDoorResult = await blueConAPIClient.openDoor(firstDoor.deviceId, firstDoor.accessDoorMap['ZERO'])
 ```
