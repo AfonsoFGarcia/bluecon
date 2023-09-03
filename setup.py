@@ -16,7 +16,7 @@ with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
 # This call to setup() does all the work
 setup(
     name="bluecon",
-    version="0.0.1a2",
+    version="0.0.1a3",
     description="Library for connecting to Fermax Blue supported doorbells",
     long_description=long_description,
     long_description_content_type="text/markdown",
