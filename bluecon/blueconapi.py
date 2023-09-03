@@ -13,6 +13,8 @@ from bluecon.storage.InMemoryOAuthTokenStorage import InMemoryOAuthTokenStorage
 class BlueConAPI(object):
     @classmethod
     async def create(cls, username: str, password: str, oAuthTokenStorage: IOAuthTokenStorage = InMemoryOAuthTokenStorage()):
+        """Create instance of BlueConAPI for the provided username and password"""
+
         self = BlueConAPI("oe87y4nj6a2vz3h63lrh8y1p8lp4zewrhymhwa6ngz5oxf0", "8r1e8jo3dk32o5i0i1l89wcgapp05sp8ossrpjnxrodv0wr", oAuthTokenStorage)
         oauthToken = await OAuthService.createOAuthToken(self.__getAuthHeader(), username, password)
         self.__oAuthTokenStorage.storeOAuthToken(oauthToken)
@@ -34,11 +36,15 @@ class BlueConAPI(object):
         return oAuthToken
     
     async def getPairings(self) -> List[Pairing]:
+        """Get list of pairings for the user"""
+
         async with aiohttp.ClientSession() as session:
             async with session.get('https://blue.fermax.com/pairing/api/v3/pairings/me', headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return list(map(Pairing, json.loads(await response.text())))
     
     async def getUserInfo(self) -> User:
+        """Get information about the user"""
+        
         async with aiohttp.ClientSession() as session:
             async with session.get('https://blue.fermax.com/user/api/v1/users/me', headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return User.fromJson(await response.text())

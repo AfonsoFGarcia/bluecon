@@ -10,9 +10,11 @@ class IOAuthTokenStorage(metaclass = abc.ABCMeta):
     @abc.abstractmethod
     def retrieveOAuthToken(self) -> OAuthToken:
         """Retrieves the OAuthToken from storage"""
+
         raise NotImplementedError
     
     @abc.abstractmethod
     def storeOAuthToken(self, oAuthToken: OAuthToken):
         """Stores the OAuthToken"""
+        
         raise NotImplementedError

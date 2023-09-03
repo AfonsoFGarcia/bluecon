@@ -5,6 +5,7 @@ class OAuthService:
     @classmethod
     async def createOAuthToken(cls, authHeader: str, username: str, password: str) -> OAuthToken:
         """Call Fermax Blue OAuth endpoint and generate an OAuthToken from the result"""
+
         async with ClientSession() as session:
             async with session.post('https://oauth.blue.fermax.com/oauth/token',
                                 data = FormData(fields = {
@@ -20,6 +21,7 @@ class OAuthService:
     @classmethod
     async def updateOAuthToken(cls, authHeader: str, oAuthToken: OAuthToken) -> OAuthToken:
         """Refresh the OAuthToken by calling the Fermax Blue OAuth endpoint and generating a new OAuthToken from the result"""
+        
         async with ClientSession() as session:
             async with session.post('https://oauth.blue.fermax.com/oauth/token',
                                     data = FormData(fields = {

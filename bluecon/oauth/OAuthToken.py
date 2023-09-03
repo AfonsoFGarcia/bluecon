@@ -10,16 +10,19 @@ class OAuthToken:
     
     def getBearerAuthHeader(self) -> dict:
         """Get a dictionary containing the Authorization HTTP header for this token"""
+
         return {
             'Authorization': f'Bearer {self.accessToken}'
         }
     
     def isExpired(self) -> bool:
         """Check if the token has already expired (for safety, it is considered expired 1 hour before actual expiration)"""
+
         return datetime.datetime.now() >= (self.__expiresOn - datetime.timedelta(hours = 1))
     
     def getRefreshToken(self) -> str:
         """Get the refresh token for this OAuthToken"""
+        
         return self.refreshToken
 
     def toJson(self) -> str:
