@@ -1,6 +1,6 @@
 
 # Always prefer setuptools over distutils
-from setuptools import setup, find_packages
+from setuptools import setup
 
 # To use a consistent encoding
 from codecs import open
@@ -16,7 +16,7 @@ with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
 # This call to setup() does all the work
 setup(
     name="bluecon",
-    version="0.0.1a3",
+    version="0.0.1a4",
     description="Library for connecting to Fermax Blue supported doorbells",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -36,5 +36,5 @@ setup(
     ],
     packages=["bluecon"],
     include_package_data=True,
-    install_requires=["aiohttp"]
+    install_requires=["aiohttp", "oscrypto", "protobuf", "http-ece"]
 )

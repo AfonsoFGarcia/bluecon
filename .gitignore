@@ -269,3 +269,5 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,windows,macos,linux
 
 main.py
+credentials.json
+persistent_ids.txt
