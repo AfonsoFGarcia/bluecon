@@ -1,1 +1,2 @@
-from bluecon.blueconapi import BlueConAPI
+from bluecon.BlueConAPI import BlueConAPI
+from bluecon.storage.IOAuthTokenStorage import IOAuthTokenStorage
