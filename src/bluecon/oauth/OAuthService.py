@@ -16,7 +16,10 @@ class OAuthService:
                                 headers = {
                                     "Authorization": f'Basic {authHeader}'
                                 }) as response:
-                return OAuthToken.fromJson(await response.text())
+                if response.status == 200:
+                    return OAuthToken.fromJson(await response.text())
+                else:
+                    raise RuntimeError(f"Could not login: {(await response.text())}")
     
     @classmethod
     async def updateOAuthToken(cls, authHeader: str, oAuthToken: OAuthToken) -> OAuthToken:

@@ -3,7 +3,7 @@ import aiohttp
 import base64
 import json
 from typing import Callable, List
-from threading import Event, Thread
+from threading import Thread
 
 from bluecon.model.AccessDoor import AccessDoor
 from bluecon.model.Pairing import Pairing
@@ -14,7 +14,8 @@ from bluecon.oauth.OAuthService import OAuthService
 from bluecon.oauth.OAuthToken import OAuthToken
 from bluecon.storage.IOAuthTokenStorage import IOAuthTokenStorage
 from bluecon.storage.InMemoryOAuthTokenStorage import InMemoryOAuthTokenStorage
-from push_receiver import PushReceiver, register
+from bluecon.push_receiver.push_receiver import PushReceiver
+from bluecon.push_receiver.register import register
 
 class BlueConAPI:
     @classmethod

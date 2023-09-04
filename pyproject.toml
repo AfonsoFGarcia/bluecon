@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling", "aiohttp", "oscrypto", "protobuf", "http-ece"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bluecon"
+version = "0.0.1a5"
+authors = [
+  { name="Afonso Garcia", email="bluecon@afonsogarcia.dev" },
+]
+description = "Library for connecting to Fermax Blue supported doorbells"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.11",
+        "Operating System :: OS Independent",
+        "Topic :: Software Development :: Libraries"
+]
+
+[project.urls]
+"Homepage" = "https://bluecon.afonsogarcia.dev"
+"Bug Tracker" = "https://github.com/AfonsoFGarcia/bluecon/issues"
