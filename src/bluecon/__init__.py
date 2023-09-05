@@ -1,6 +1,7 @@
 from bluecon.BlueConAPI import BlueConAPI
 from bluecon.storage.IOAuthTokenStorage import IOAuthTokenStorage
 from bluecon.storage.InMemoryOAuthTokenStorage import InMemoryOAuthTokenStorage
+from bluecon.storage.INotificationInfoStorage import INotificationInfoStorage
 from bluecon.notifications.INotification import INotification
 from bluecon.notifications.NotificationBuilder import NotificationBuilder
 from bluecon.notifications.CallNotification import CallNotification
