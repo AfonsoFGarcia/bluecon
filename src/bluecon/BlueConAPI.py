@@ -20,6 +20,8 @@ from bluecon.push_receiver.push_receiver import PushReceiver
 from bluecon.push_receiver.register import register
 
 FERMAX_BASE_URL = "https://blue.fermax.com"
+FERMAX_CLIENT_ID = "oe87y4nj6a2vz3h63lrh8y1p8lp4zewrhymhwa6ngz5oxf0"
+FERMAX_CLIENT_SECRET = "8r1e8jo3dk32o5i0i1l89wcgapp05sp8ossrpjnxrodv0wr"
 
 class BlueConAPI:
     @classmethod
@@ -32,23 +34,29 @@ class BlueConAPI:
     ):
         """Create instance of BlueConAPI for the provided username and password"""
 
-        self = BlueConAPI(
-            "oe87y4nj6a2vz3h63lrh8y1p8lp4zewrhymhwa6ngz5oxf0", 
-            "8r1e8jo3dk32o5i0i1l89wcgapp05sp8ossrpjnxrodv0wr",
-            notificationCallback,
-            oAuthTokenStorage)
+        self = BlueConAPI(notificationCallback, oAuthTokenStorage)
         oauthToken = await OAuthService.createOAuthToken(self.__getAuthHeader(), username, password)
         self.__oAuthTokenStorage.storeOAuthToken(oauthToken)
         return self
     
+    @classmethod
+    def create_already_authed(
+        cls,
+        notificationCallback: Callable[[INotification], None],
+        oAuthTokenStorage: IOAuthTokenStorage
+    ):
+        """Create instance of BlueConAPI with the OAuth token stored in the provided storage"""
+        if oAuthTokenStorage.retrieveOAuthToken() is not None:
+            return BlueConAPI(notificationCallback, oAuthTokenStorage)
+        else:
+            raise RuntimeError("Provided IOAuthTokenStorage does not contain a token")
+    
     def __init__(
             self, 
-            clientId: str, 
-            clientSecret: str, 
             notificationCallback: Callable[[INotification], None], 
             oAuthTokenStorage: IOAuthTokenStorage):
-        self.__clientId = clientId
-        self.__clientSecret = clientSecret
+        self.__clientId = FERMAX_CLIENT_ID
+        self.__clientSecret = FERMAX_CLIENT_SECRET
         self.__oAuthTokenStorage = oAuthTokenStorage
         self.receiver : PushReceiver = None
         self.deviceId : str = None

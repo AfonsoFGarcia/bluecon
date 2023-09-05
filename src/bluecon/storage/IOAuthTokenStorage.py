@@ -8,7 +8,7 @@ class IOAuthTokenStorage(metaclass = abc.ABCMeta):
         return hasattr(__subclass, 'retrieveOAuthToken') and callable(__subclass.retrieveOAuthToken) and hasattr(__subclass, 'storeOAuthToken') and callable(__subclass.storeOAuthToken)
 
     @abc.abstractmethod
-    def retrieveOAuthToken(self) -> OAuthToken:
+    def retrieveOAuthToken(self) -> OAuthToken | None:
         """Retrieves the OAuthToken from storage"""
 
         raise NotImplementedError
