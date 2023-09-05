@@ -8,6 +8,7 @@ from threading import Thread
 from bluecon.model.AccessDoor import AccessDoor
 from bluecon.model.Pairing import Pairing
 from bluecon.model.User import User
+from bluecon.model.CallLog import CallLog
 from bluecon.notifications.INotification import INotification
 from bluecon.notifications.NotificationBuilder import NotificationBuilder
 from bluecon.oauth.OAuthService import OAuthService
@@ -159,3 +160,25 @@ class BlueConAPI:
         self.__listenerThread.join(10.0)
         await self.registerAppToken(False)
         return self.__listenerThread.is_alive()
+    
+    async def getLastPicture(self, deviceId: str) -> bytes | None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get('https://blue.fermax.com/callManager/api/v1/callregistry/participant',
+                                    params = {
+                                        "appToken": self.deviceId,
+                                        "callRegistryType": "all"
+                                    },
+                                    headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+                responseJson = await response.json()
+            callLogs: List[CallLog] = [callLog for callLog in map(CallLog, responseJson) if callLog.deviceId == deviceId and callLog.photoId is not None]
+            latestCallLog : CallLog | None = max(callLogs or None, key = lambda x: x.getCallDate())
+
+            if latestCallLog is not None:
+                async with session.get('https://blue.fermax.com/callManager/api/v1/photocall',
+                                       params = {
+                                           "photoId": latestCallLog.photoId
+                                       },
+                                       headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+                    return base64.b64decode((await response.json())["image"]["data"])
+            else:
+                return None
