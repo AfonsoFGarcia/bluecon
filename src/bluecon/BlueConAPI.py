@@ -9,6 +9,7 @@ from bluecon.model.AccessDoor import AccessDoor
 from bluecon.model.Pairing import Pairing
 from bluecon.model.User import User
 from bluecon.model.CallLog import CallLog
+from bluecon.model.DeviceInfo import DeviceInfo
 from bluecon.notifications.INotification import INotification
 from bluecon.notifications.NotificationBuilder import NotificationBuilder
 from bluecon.oauth.OAuthService import OAuthService
@@ -162,8 +163,8 @@ class BlueConAPI:
         return self.__listenerThread.is_alive()
     
     async def getLastPicture(self, deviceId: str) -> bytes | None:
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://blue.fermax.com/callManager/api/v1/callregistry/participant',
+        async with aiohttp.ClientSession('https://blue.fermax.com/callManager/api/v1') as session:
+            async with session.get('/callregistry/participant',
                                     params = {
                                         "appToken": self.deviceId,
                                         "callRegistryType": "all"
@@ -174,7 +175,7 @@ class BlueConAPI:
             latestCallLog : CallLog | None = max(callLogs or None, key = lambda x: x.getCallDate())
 
             if latestCallLog is not None:
-                async with session.get('https://blue.fermax.com/callManager/api/v1/photocall',
+                async with session.get('/photocall',
                                        params = {
                                            "photoId": latestCallLog.photoId
                                        },
@@ -182,3 +183,12 @@ class BlueConAPI:
                     return base64.b64decode((await response.json())["image"]["data"])
             else:
                 return None
+    
+    async def getDeviceInfo(self, deviceId: str) -> DeviceInfo | None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'https://blue.fermax.com/deviceaction/api/v1/device/{deviceId}',
+                                   headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+                if response.status == 200:
+                    return DeviceInfo(await response.json())
+                else:
+                    return None

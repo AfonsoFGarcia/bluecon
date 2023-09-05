@@ -3,6 +3,7 @@ from json import JSONEncoder
 from bluecon.model.AccessDoor import AccessDoor
 from bluecon.model.Pairing import Pairing
 from bluecon.model.User import User
+from bluecon.model.DeviceInfo import DeviceInfo
 
 class BlueConJSONEncoder(JSONEncoder):
     def default(self, o):
@@ -26,6 +27,16 @@ class BlueConJSONEncoder(JSONEncoder):
                     'number': o.number
                 },
                 'visible': o.visible
+            }
+        elif type(o) is DeviceInfo:
+            return {
+                'deviceId': o.deviceId,
+                'connectionState': o.connectionState,
+                'family': o.family,
+                'type': o.type,
+                'subType': o.subType,
+                'photoCaller': o.photoCaller,
+                'wirelessSignal': o.wirelessSignal
             }
         else:
             raise TypeError

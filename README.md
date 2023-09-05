@@ -68,6 +68,12 @@ Get last captured picture:
 blueConAPIClient.getLastPicture(firstDoor.deviceId)
 ```
 
+Get device info:
+
+```python
+blueConAPIClient.getDeviceInfo(firstDoor.deviceId)
+```
+
 ## Acknowledgements
 
 I'd like to thank all contributors of [push_receiver](https://github.com/louisliv/push_receiver) and its many forks for provinding a library that can receive push notifications from Firebase. This is the essencial part of how Fermax Blue works in terms of receiving the doorbell rings and without it this project would be close to pointless. This library is included with some minor changes in this repo.
