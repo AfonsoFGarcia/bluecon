@@ -16,6 +16,8 @@ from bluecon.oauth.OAuthService import OAuthService
 from bluecon.oauth.OAuthToken import OAuthToken
 from bluecon.storage.IOAuthTokenStorage import IOAuthTokenStorage
 from bluecon.storage.InMemoryOAuthTokenStorage import InMemoryOAuthTokenStorage
+from bluecon.storage.INotificationInfoStorage import INotificationInfoStorage
+from bluecon.storage.FileNotificationInfoStorage import FileNotificationInfoStorage
 from bluecon.push_receiver.push_receiver import PushReceiver
 from bluecon.push_receiver.register import register
 
@@ -30,11 +32,12 @@ class BlueConAPI:
         username: str, 
         password: str,
         notificationCallback: Callable[[INotification], None],
-        oAuthTokenStorage: IOAuthTokenStorage = InMemoryOAuthTokenStorage()
+        oAuthTokenStorage: IOAuthTokenStorage = InMemoryOAuthTokenStorage(),
+        notificationInfoStorage: INotificationInfoStorage = FileNotificationInfoStorage()
     ):
         """Create instance of BlueConAPI for the provided username and password"""
 
-        self = BlueConAPI(notificationCallback, oAuthTokenStorage)
+        self = BlueConAPI(notificationCallback, oAuthTokenStorage, notificationInfoStorage)
         oauthToken = await OAuthService.createOAuthToken(self.__getAuthHeader(), username, password)
         self.__oAuthTokenStorage.storeOAuthToken(oauthToken)
         return self
@@ -43,21 +46,24 @@ class BlueConAPI:
     def create_already_authed(
         cls,
         notificationCallback: Callable[[INotification], None],
-        oAuthTokenStorage: IOAuthTokenStorage
+        oAuthTokenStorage: IOAuthTokenStorage,
+        notificationInfoStorage: INotificationInfoStorage = FileNotificationInfoStorage()
     ):
         """Create instance of BlueConAPI with the OAuth token stored in the provided storage"""
         if oAuthTokenStorage.retrieveOAuthToken() is not None:
-            return BlueConAPI(notificationCallback, oAuthTokenStorage)
+            return BlueConAPI(notificationCallback, oAuthTokenStorage, notificationInfoStorage)
         else:
             raise RuntimeError("Provided IOAuthTokenStorage does not contain a token")
     
     def __init__(
             self, 
             notificationCallback: Callable[[INotification], None], 
-            oAuthTokenStorage: IOAuthTokenStorage):
+            oAuthTokenStorage: IOAuthTokenStorage,
+            notificationInfoStorage: INotificationInfoStorage):
         self.__clientId = FERMAX_CLIENT_ID
         self.__clientSecret = FERMAX_CLIENT_SECRET
         self.__oAuthTokenStorage = oAuthTokenStorage
+        self.__notificationInfoStorage = notificationInfoStorage
         self.receiver : PushReceiver = None
         self.deviceId : str = None
         self.notificationCallback = notificationCallback
@@ -129,34 +135,32 @@ class BlueConAPI:
             SENDER_ID = 879268374717
             APP_ID = "1:879268374717:android:b8e39b52f4a7452b926fd4"
 
-            try:
-                with open("credentials.json", "r") as f:
-                    credentials = json.load(f)
-            
-            except FileNotFoundError:
+            credentials = blueConAPIClient.__notificationInfoStorage.retrieveCredentials()
+            if credentials is None:
                 credentials = register(sender_id = SENDER_ID, app_id = APP_ID)
-                with open("credentials.json", "w") as f:
-                    json.dump(credentials, f)
-
+                blueConAPIClient.__notificationInfoStorage.storeCredentials(credentials)
             
             blueConAPIClient.deviceId = credentials["fcm"]["token"]
             asyncio.run(blueConAPIClient.registerAppToken(True))
             
-            with open("persistent_ids.txt", "a+") as f:
-                received_persistent_ids = [x.strip() for x in f]
-            
-            blueConAPIClient.receiver = PushReceiver(credentials, received_persistent_ids)
+            received_persistent_ids = blueConAPIClient.__notificationInfoStorage.retrievePersistentIds()
+
+            if received_persistent_ids is None:
+                blueConAPIClient.receiver = PushReceiver(credentials)
+            else:
+                blueConAPIClient.receiver = PushReceiver(credentials, received_persistent_ids)
+
             blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
         
         def on_notification(blueConAPIClient: BlueConAPI, notification: dict, data_message):
             idstr = data_message.persistent_id + "\n"
 
-            with open("persistent_ids.txt", "r") as f:
-                if idstr in f:
-                    return
+            received_persistent_ids = blueConAPIClient.__notificationInfoStorage.retrievePersistentIds()
+
+            if received_persistent_ids is not None and any(idstr in x for x in received_persistent_ids):
+                return
             
-            with open("persistent_ids.txt", "a") as f:
-                f.write(idstr)
+            blueConAPIClient.__notificationInfoStorage.storePersistentId(idstr)
             
             blueConNotification = NotificationBuilder.fromNotification(notification)
             asyncio.run(blueConAPIClient.acknowledgeNotification(blueConNotification))
