@@ -153,7 +153,7 @@ class BlueConAPI:
             blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
         
         def on_notification(blueConAPIClient: BlueConAPI, notification: dict, data_message):
-            idstr = data_message.persistent_id + "\n"
+            idstr = data_message.persistent_id
 
             received_persistent_ids = blueConAPIClient.__notificationInfoStorage.retrievePersistentIds()
 

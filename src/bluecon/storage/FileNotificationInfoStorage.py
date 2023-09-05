@@ -24,4 +24,4 @@ class FileNotificationInfoStorage(INotificationInfoStorage):
     
     def storePersistentId(self, persistentId: str):
         with open("persistent_ids.txt", "a") as f:
-            f.write(persistentId)
+            f.write(persistentId + "\n")
