@@ -19,6 +19,8 @@ from bluecon.storage.InMemoryOAuthTokenStorage import InMemoryOAuthTokenStorage
 from bluecon.push_receiver.push_receiver import PushReceiver
 from bluecon.push_receiver.register import register
 
+FERMAX_BASE_URL = "https://blue.fermax.com"
+
 class BlueConAPI:
     @classmethod
     async def create(
@@ -66,21 +68,21 @@ class BlueConAPI:
         """Get list of pairings for the user"""
 
         async with aiohttp.ClientSession() as session:
-            async with session.get('https://blue.fermax.com/pairing/api/v3/pairings/me', headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+            async with session.get(f'{FERMAX_BASE_URL}/pairing/api/v3/pairings/me', headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return list(map(Pairing, json.loads(await response.text())))
     
     async def getUserInfo(self) -> User:
         """Get information about the user"""
         
         async with aiohttp.ClientSession() as session:
-            async with session.get('https://blue.fermax.com/user/api/v1/users/me', headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+            async with session.get(f'{FERMAX_BASE_URL}/user/api/v1/users/me', headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return User(json.loads(await response.text()))
     
     async def openDoor(self, deviceId: str, door: AccessDoor) -> bool:
         """Open the provided door"""
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(f'https://blue.fermax.com/deviceaction/api/v1/device/{deviceId}/directed-opendoor',
+            async with session.post(f'{FERMAX_BASE_URL}/deviceaction/api/v1/device/{deviceId}/directed-opendoor',
                                     json = door.getDirectOpenDoorParamsRequest(),
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return response.status == 200
@@ -90,7 +92,7 @@ class BlueConAPI:
 
         if notification.shouldAcknowledge():
             async with aiohttp.ClientSession() as session:
-                async with session.post('https://blue.fermax.com/callmanager/api/v1/message/ack',
+                async with session.post(f'{FERMAX_BASE_URL}/callmanager/api/v1/message/ack',
                                         json = {
                                             "attended": True,
                                             "fcmMessageId": notification.getFcmMessageId()
@@ -100,7 +102,7 @@ class BlueConAPI:
 
     async def registerAppToken(self, active: bool) -> bool:
         async with aiohttp.ClientSession() as session:
-            async with session.post('https://blue.fermax.com/notification/api/v1/apptoken',
+            async with session.post(f'{FERMAX_BASE_URL}/notification/api/v1/apptoken',
                                     json = {
                                         "token": self.deviceId,
                                         "appVersion": "3.3.2",
@@ -163,8 +165,8 @@ class BlueConAPI:
         return self.__listenerThread.is_alive()
     
     async def getLastPicture(self, deviceId: str) -> bytes | None:
-        async with aiohttp.ClientSession('https://blue.fermax.com/callManager/api/v1') as session:
-            async with session.get('/callregistry/participant',
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/callregistry/participant',
                                     params = {
                                         "appToken": self.deviceId,
                                         "callRegistryType": "all"
@@ -175,7 +177,7 @@ class BlueConAPI:
             latestCallLog : CallLog | None = max(callLogs or None, key = lambda x: x.getCallDate())
 
             if latestCallLog is not None:
-                async with session.get('/photocall',
+                async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/photocall',
                                        params = {
                                            "photoId": latestCallLog.photoId
                                        },
@@ -186,7 +188,7 @@ class BlueConAPI:
     
     async def getDeviceInfo(self, deviceId: str) -> DeviceInfo | None:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f'https://blue.fermax.com/deviceaction/api/v1/device/{deviceId}',
+            async with session.get(f'{FERMAX_BASE_URL}/deviceaction/api/v1/device/{deviceId}',
                                    headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 if response.status == 200:
                     return DeviceInfo(await response.json())
