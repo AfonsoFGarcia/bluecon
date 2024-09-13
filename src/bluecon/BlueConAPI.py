@@ -31,13 +31,20 @@ class BlueConAPI:
         cls, 
         username: str, 
         password: str,
+        clientId: str,
+        clientSecret: str,
+        senderId: int,
+        apiKey: str,
+        projectId: str,
+        appId: str,
+        packageName: str,
         notificationCallback: Callable[[INotification], None],
         oAuthTokenStorage: IOAuthTokenStorage = InMemoryOAuthTokenStorage(),
         notificationInfoStorage: INotificationInfoStorage = FileNotificationInfoStorage()
     ):
         """Create instance of BlueConAPI for the provided username and password"""
 
-        self = BlueConAPI(notificationCallback, oAuthTokenStorage, notificationInfoStorage)
+        self = BlueConAPI(clientId, clientSecret, senderId, apiKey, projectId, appId, packageName, notificationCallback, oAuthTokenStorage, notificationInfoStorage)
         oauthToken = await OAuthService.createOAuthToken(self.__getAuthHeader(), username, password)
         await self.__oAuthTokenStorage.storeOAuthToken(oauthToken)
         return self
@@ -45,23 +52,42 @@ class BlueConAPI:
     @classmethod
     async def create_already_authed(
         cls,
+        clientId: str,
+        clientSecret: str,
+        senderId: int,
+        apiKey: str,
+        projectId: str,
+        appId: str,
+        packageName: str,
         notificationCallback: Callable[[INotification], None],
         oAuthTokenStorage: IOAuthTokenStorage,
         notificationInfoStorage: INotificationInfoStorage = FileNotificationInfoStorage()
     ):
         """Create instance of BlueConAPI with the OAuth token stored in the provided storage"""
         if await oAuthTokenStorage.retrieveOAuthToken() is not None:
-            return BlueConAPI(notificationCallback, oAuthTokenStorage, notificationInfoStorage)
+            return BlueConAPI(clientId, clientSecret, senderId, apiKey, projectId, appId, packageName, notificationCallback, oAuthTokenStorage, notificationInfoStorage)
         else:
             raise RuntimeError("Provided IOAuthTokenStorage does not contain a token")
     
     def __init__(
             self, 
+            clientId: str,
+            clientSecret: str,
+            senderId: int,
+            apiKey: str,
+            projectId: str,
+            appId: str,
+            packageName: str,
             notificationCallback: Callable[[INotification], None], 
             oAuthTokenStorage: IOAuthTokenStorage,
             notificationInfoStorage: INotificationInfoStorage):
-        self.__clientId = FERMAX_CLIENT_ID
-        self.__clientSecret = FERMAX_CLIENT_SECRET
+        self.__clientId = clientId
+        self.__clientSecret = clientSecret
+        self.__senderId = senderId
+        self.__apiKey = apiKey,
+        self.__projectId = projectId,
+        self.__appId = appId,
+        self.__packageName = packageName,
         self.__oAuthTokenStorage = oAuthTokenStorage
         self.__notificationInfoStorage = notificationInfoStorage
         self.receiver : PushReceiver = None
@@ -135,11 +161,11 @@ class BlueConAPI:
 
             def buildPackageCert():
                 sha = hashlib.sha512()
-                sha.update(str(SENDER_ID).encode('utf-8'))
-                sha.update(APP_ID.encode('utf-8'))
-                sha.update(API_KEY.encode('utf-8'))
-                sha.update(PROJECT_ID.encode('utf-8'))
-                sha.update(PACKAGE_NAME.encode('utf-8'))
+                sha.update(str(blueConAPIClient.__senderId).encode('utf-8'))
+                sha.update(blueConAPIClient.__appId.encode('utf-8'))
+                sha.update(blueConAPIClient.__apiKey.encode('utf-8'))
+                sha.update(blueConAPIClient.__projectId.encode('utf-8'))
+                sha.update(blueConAPIClient.__packageName.encode('utf-8'))
                 return sha.hexdigest()
 
             PACKAGE_CERT = buildPackageCert()
@@ -147,11 +173,11 @@ class BlueConAPI:
             credentials = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrieveCredentials())
             if credentials is None:
                 credentials = AndroidFCM.register(
-                    api_key=API_KEY,
-                    project_id=PROJECT_ID,
-                    gcm_sender_id = SENDER_ID, 
-                    gms_app_id = APP_ID,
-                    android_package_name=PACKAGE_NAME,
+                    api_key=blueConAPIClient.__apiKey,
+                    project_id=blueConAPIClient.__projectId,
+                    gcm_sender_id = blueConAPIClient.__senderId, 
+                    gms_app_id = blueConAPIClient.__appId,
+                    android_package_name=blueConAPIClient.__packageName,
                     android_package_cert=PACKAGE_CERT
                 )
                 asyncio.run(blueConAPIClient.__notificationInfoStorage.storeCredentials(credentials))
