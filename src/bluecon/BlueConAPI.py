@@ -23,7 +23,7 @@ from bluecon.storage.FileNotificationInfoStorage import FileNotificationInfoStor
 from push_receiver import PushReceiver
 from push_receiver.android_fcm_register import AndroidFCM
 
-FERMAX_BASE_URL = "https://blue.fermax.com"
+FERMAX_BASE_URL = "https://blue.fermax.io"
 
 class BlueConAPI:
     @classmethod

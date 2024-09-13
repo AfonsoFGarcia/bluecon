@@ -1,7 +1,7 @@
 from bluecon.oauth.OAuthToken import OAuthToken
 from aiohttp import ClientSession, FormData
 
-FERMAX_OAUTH_BASE_URL = "https://oauth.blue.fermax.com"
+FERMAX_OAUTH_BASE_URL = "https://oauth-blue.fermax.io"
 
 class OAuthService:
     @classmethod
