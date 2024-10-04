@@ -157,6 +157,16 @@ class BlueConAPI:
     async def startNotificationListener(self, hass = None): #hass is an optional parameter for Home Assistant
         """Starts the notification listener to get notifications about calls"""
 
+        def run_in_event_loop(coroutine):
+            if hass:
+                return asyncio.run_coroutine_threadsafe(coroutine, hass.loop).result()
+
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                return asyncio.ensure_future(coroutine)
+
+            return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
+
         async def listener_thread(blueConAPIClient: BlueConAPI):
             def buildPackageCert():
                 sha = hashlib.sha512()
