@@ -213,7 +213,6 @@ class BlueConAPI:
         self.__listenerThread.start()
     
     async def stopNotificationListener(self) -> bool:
-        self.receiver.stop()
         self.__listenerThread.join(10.0)
         await self.registerAppToken(False)
         return self.__listenerThread.is_alive()
