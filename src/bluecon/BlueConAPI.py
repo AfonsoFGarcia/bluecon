@@ -154,7 +154,7 @@ class BlueConAPI:
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return response.status == 200
     
-    async def startNotificationListener(self):
+    async def startNotificationListener(self, hass = None): #hass is an optional parameter for Home Assistant
         """Starts the notification listener to get notifications about calls"""
 
         async def listener_thread(blueConAPIClient: BlueConAPI):
