@@ -154,11 +154,10 @@ class BlueConAPI:
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return response.status == 200
     
-    def startNotificationListener(self):
+    async def startNotificationListener(self):
         """Starts the notification listener to get notifications about calls"""
 
-        def listener_thread(blueConAPIClient: BlueConAPI):
-
+        async def listener_thread(blueConAPIClient: BlueConAPI):
             def buildPackageCert():
                 sha = hashlib.sha512()
                 sha.update(str(blueConAPIClient.__senderId).encode('utf-8'))
@@ -170,7 +169,7 @@ class BlueConAPI:
 
             PACKAGE_CERT = buildPackageCert()
 
-            credentials = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrieveCredentials())
+            credentials = await blueConAPIClient.__notificationInfoStorage.retrieveCredentials()
             if credentials is None:
                 credentials = AndroidFCM.register(
                     api_key=blueConAPIClient.__apiKey,
@@ -180,37 +179,19 @@ class BlueConAPI:
                     android_package_name=blueConAPIClient.__packageName,
                     android_package_cert=PACKAGE_CERT
                 )
-                asyncio.run(blueConAPIClient.__notificationInfoStorage.storeCredentials(credentials))
+                await blueConAPIClient.__notificationInfoStorage.storeCredentials(credentials)
             
             blueConAPIClient.deviceId = credentials["fcm"]["token"]
-            asyncio.run(blueConAPIClient.registerAppToken(True))
+            await blueConAPIClient.registerAppToken(True)
             
-            received_persistent_ids = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrievePersistentIds())
+            received_persistent_ids = await blueConAPIClient.__notificationInfoStorage.retrievePersistentIds()
 
             if received_persistent_ids is None:
                 blueConAPIClient.receiver = PushReceiver(credentials)
             else:
                 blueConAPIClient.receiver = PushReceiver(credentials, received_persistent_ids)
 
-            blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
-        
-        def on_notification(blueConAPIClient: BlueConAPI, notification: dict, data_message):
-            idstr = data_message.persistent_id
-
-            received_persistent_ids = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrievePersistentIds())
-
-            if received_persistent_ids is not None and any(idstr in x for x in received_persistent_ids):
-                return
-            
-            asyncio.run(blueConAPIClient.__notificationInfoStorage.storePersistentId(idstr))
-            
-            blueConNotification = NotificationBuilder.fromNotification(notification, data_message.id)
-            asyncio.run(blueConAPIClient.acknowledgeNotification(blueConNotification))
-            blueConAPIClient.notificationCallback(blueConNotification)
-        
-        self.__listenerThread = Thread(target = listener_thread, args = (self, ))
-        self.__listenerThread.daemon = True
-        self.__listenerThread.start()
+        await listener_thread(self)
     
     async def stopNotificationListener(self) -> bool:
         self.__listenerThread.join(10.0)
