@@ -167,6 +167,23 @@ class BlueConAPI:
 
             return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
 
+        def on_notification(blueConAPIClient: BlueConAPI, notification: dict, data_message):
+            idstr = data_message.persistent_id
+            received_persistent_ids = []
+
+
+            received_persistent_ids = run_in_event_loop(blueConAPIClient.__notificationInfoStorage.retrievePersistentIds())
+
+            if received_persistent_ids is not None and any(idstr in x for x in received_persistent_ids):
+                return
+
+            # TODO I commented this because it fails for me in Home Assistant
+            #run_in_event_loop(blueConAPIClient.__notificationInfoStorage.storePersistentId(idstr))
+
+            blueConNotification = NotificationBuilder.fromNotification(notification, data_message.id)
+            run_in_event_loop(blueConAPIClient.acknowledgeNotification(blueConNotification))
+            blueConAPIClient.notificationCallback(blueConNotification)
+
         async def listener_thread(blueConAPIClient: BlueConAPI):
             def buildPackageCert():
                 sha = hashlib.sha512()
