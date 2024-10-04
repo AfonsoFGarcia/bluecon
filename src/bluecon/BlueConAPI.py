@@ -84,10 +84,10 @@ class BlueConAPI:
         self.__clientId = clientId
         self.__clientSecret = clientSecret
         self.__senderId = senderId
-        self.__apiKey = apiKey,
-        self.__projectId = projectId,
-        self.__appId = appId,
-        self.__packageName = packageName,
+        self.__apiKey = apiKey
+        self.__projectId = projectId
+        self.__appId = appId
+        self.__packageName = packageName
         self.__oAuthTokenStorage = oAuthTokenStorage
         self.__notificationInfoStorage = notificationInfoStorage
         self.receiver : PushReceiver = None
