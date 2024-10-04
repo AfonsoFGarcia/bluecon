@@ -233,7 +233,7 @@ class BlueConAPI:
         async with aiohttp.ClientSession() as session:
             async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/callregistry/participant',
                                     params = {
-                                        "appToken": self.deviceId,
+                                        "appToken": deviceId,
                                         "callRegistryType": "all"
                                     },
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
