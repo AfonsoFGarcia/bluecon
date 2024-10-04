@@ -218,6 +218,10 @@ class BlueConAPI:
             else:
                 blueConAPIClient.receiver = PushReceiver(credentials, received_persistent_ids)
 
+            if hass:
+                hass.async_add_executor_job(blueConAPIClient.receiver.listen, on_notification, blueConAPIClient)
+            else:
+                blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
         await listener_thread(self)
     
     async def stopNotificationListener(self) -> bool:
