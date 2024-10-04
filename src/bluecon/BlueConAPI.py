@@ -239,17 +239,18 @@ class BlueConAPI:
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 responseJson = await response.json()
             callLogs: List[CallLog] = [callLog for callLog in map(CallLog, responseJson) if callLog.deviceId == deviceId and callLog.photoId is not None]
-            latestCallLog : CallLog | None = max(callLogs or None, key = lambda x: x.getCallDate())
 
-            if latestCallLog is not None:
-                async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/photocall',
-                                       params = {
-                                           "photoId": latestCallLog.photoId
-                                       },
-                                       headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
-                    return base64.b64decode((await response.json())["image"]["data"])
-            else:
+            if (callLogs is None or len(callLogs) == 0):
                 return None
+
+            latestCallLog : CallLog | None = max(callLogs, key = lambda x: x.getCallDate())
+
+            async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/photocall',
+                                    params = {
+                                        "photoId": latestCallLog.photoId
+                                    },
+                                    headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+                return base64.b64decode((await response.json())["image"]["data"])
     
     async def getDeviceInfo(self, deviceId: str) -> DeviceInfo | None:
         async with aiohttp.ClientSession() as session:
