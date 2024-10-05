@@ -154,11 +154,37 @@ class BlueConAPI:
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return response.status == 200
     
-    def startNotificationListener(self):
+    async def startNotificationListener(self, hass = None): #hass is an optional parameter for Home Assistant
         """Starts the notification listener to get notifications about calls"""
 
-        def listener_thread(blueConAPIClient: BlueConAPI):
+        def run_in_event_loop(coroutine):
+            if hass:
+                return asyncio.run_coroutine_threadsafe(coroutine, hass.loop).result()
 
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                return asyncio.ensure_future(coroutine)
+
+            return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
+
+        def on_notification(blueConAPIClient: BlueConAPI, notification: dict, data_message):
+            idstr = data_message.persistent_id
+            received_persistent_ids = []
+
+
+            received_persistent_ids = run_in_event_loop(blueConAPIClient.__notificationInfoStorage.retrievePersistentIds())
+
+            if received_persistent_ids is not None and any(idstr in x for x in received_persistent_ids):
+                return
+
+            # TODO I commented this because it fails for me in Home Assistant
+            #run_in_event_loop(blueConAPIClient.__notificationInfoStorage.storePersistentId(idstr))
+
+            blueConNotification = NotificationBuilder.fromNotification(notification, data_message.id)
+            run_in_event_loop(blueConAPIClient.acknowledgeNotification(blueConNotification))
+            blueConAPIClient.notificationCallback(blueConNotification)
+
+        async def listener_thread(blueConAPIClient: BlueConAPI):
             def buildPackageCert():
                 sha = hashlib.sha512()
                 sha.update(str(blueConAPIClient.__senderId).encode('utf-8'))
@@ -170,7 +196,7 @@ class BlueConAPI:
 
             PACKAGE_CERT = buildPackageCert()
 
-            credentials = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrieveCredentials())
+            credentials = await blueConAPIClient.__notificationInfoStorage.retrieveCredentials()
             if credentials is None:
                 credentials = AndroidFCM.register(
                     api_key=blueConAPIClient.__apiKey,
@@ -180,37 +206,23 @@ class BlueConAPI:
                     android_package_name=blueConAPIClient.__packageName,
                     android_package_cert=PACKAGE_CERT
                 )
-                asyncio.run(blueConAPIClient.__notificationInfoStorage.storeCredentials(credentials))
+                await blueConAPIClient.__notificationInfoStorage.storeCredentials(credentials)
             
             blueConAPIClient.deviceId = credentials["fcm"]["token"]
-            asyncio.run(blueConAPIClient.registerAppToken(True))
+            await blueConAPIClient.registerAppToken(True)
             
-            received_persistent_ids = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrievePersistentIds())
+            received_persistent_ids = await blueConAPIClient.__notificationInfoStorage.retrievePersistentIds()
 
             if received_persistent_ids is None:
                 blueConAPIClient.receiver = PushReceiver(credentials)
             else:
                 blueConAPIClient.receiver = PushReceiver(credentials, received_persistent_ids)
 
-            blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
-        
-        def on_notification(blueConAPIClient: BlueConAPI, notification: dict, data_message):
-            idstr = data_message.persistent_id
-
-            received_persistent_ids = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrievePersistentIds())
-
-            if received_persistent_ids is not None and any(idstr in x for x in received_persistent_ids):
-                return
-            
-            asyncio.run(blueConAPIClient.__notificationInfoStorage.storePersistentId(idstr))
-            
-            blueConNotification = NotificationBuilder.fromNotification(notification, data_message.id)
-            asyncio.run(blueConAPIClient.acknowledgeNotification(blueConNotification))
-            blueConAPIClient.notificationCallback(blueConNotification)
-        
-        self.__listenerThread = Thread(target = listener_thread, args = (self, ))
-        self.__listenerThread.daemon = True
-        self.__listenerThread.start()
+            if hass:
+                hass.async_add_executor_job(blueConAPIClient.receiver.listen, on_notification, blueConAPIClient)
+            else:
+                blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
+        await listener_thread(self)
     
     async def stopNotificationListener(self) -> bool:
         self.__listenerThread.join(10.0)
@@ -221,23 +233,24 @@ class BlueConAPI:
         async with aiohttp.ClientSession() as session:
             async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/callregistry/participant',
                                     params = {
-                                        "appToken": self.deviceId,
+                                        "appToken": deviceId,
                                         "callRegistryType": "all"
                                     },
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 responseJson = await response.json()
             callLogs: List[CallLog] = [callLog for callLog in map(CallLog, responseJson) if callLog.deviceId == deviceId and callLog.photoId is not None]
-            latestCallLog : CallLog | None = max(callLogs or None, key = lambda x: x.getCallDate())
 
-            if latestCallLog is not None:
-                async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/photocall',
-                                       params = {
-                                           "photoId": latestCallLog.photoId
-                                       },
-                                       headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
-                    return base64.b64decode((await response.json())["image"]["data"])
-            else:
+            if (callLogs is None or len(callLogs) == 0):
                 return None
+
+            latestCallLog : CallLog | None = max(callLogs, key = lambda x: x.getCallDate())
+
+            async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/photocall',
+                                    params = {
+                                        "photoId": latestCallLog.photoId
+                                    },
+                                    headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+                return base64.b64decode((await response.json())["image"]["data"])
     
     async def getDeviceInfo(self, deviceId: str) -> DeviceInfo | None:
         async with aiohttp.ClientSession() as session:
