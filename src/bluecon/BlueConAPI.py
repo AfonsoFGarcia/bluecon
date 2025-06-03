@@ -154,43 +154,45 @@ class BlueConAPI:
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 return response.status == 200
     
-    def startNotificationListener(self):
+    async def startNotificationListener(self):
         """Starts the notification listener to get notifications about calls"""
 
+        def buildPackageCert():
+            sha = hashlib.sha512()
+            sha.update(str(self.__senderId).encode('utf-8'))
+            sha.update(self.__appId.encode('utf-8'))
+            sha.update(self.__apiKey.encode('utf-8'))
+            sha.update(self.__projectId.encode('utf-8'))
+            sha.update(self.__packageName.encode('utf-8'))
+            return sha.hexdigest()
+
+        PACKAGE_CERT = buildPackageCert()
+
+        credentials = await self.__notificationInfoStorage.retrieveCredentials()
+        if credentials is None:
+            credentials = AndroidFCM.register(
+                api_key=self.__apiKey,
+                project_id=self.__projectId,
+                gcm_sender_id = self.__senderId, 
+                gms_app_id = self.__appId,
+                android_package_name=self.__packageName,
+                android_package_cert=PACKAGE_CERT
+            )
+            await self.__notificationInfoStorage.storeCredentials(credentials)
+        
+
+        self.deviceId = credentials["fcm"]["token"]
+        await self.registerAppToken(True)
+        
+        received_persistent_ids = await self.__notificationInfoStorage.retrievePersistentIds()
+
+        if received_persistent_ids is None:
+            self.receiver = PushReceiver(credentials)
+        else:
+            self.receiver = PushReceiver(credentials, received_persistent_ids)
+        
+        
         def listener_thread(blueConAPIClient: BlueConAPI):
-
-            def buildPackageCert():
-                sha = hashlib.sha512()
-                sha.update(str(blueConAPIClient.__senderId).encode('utf-8'))
-                sha.update(blueConAPIClient.__appId.encode('utf-8'))
-                sha.update(blueConAPIClient.__apiKey.encode('utf-8'))
-                sha.update(blueConAPIClient.__projectId.encode('utf-8'))
-                sha.update(blueConAPIClient.__packageName.encode('utf-8'))
-                return sha.hexdigest()
-
-            PACKAGE_CERT = buildPackageCert()
-
-            credentials = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrieveCredentials())
-            if credentials is None:
-                credentials = AndroidFCM.register(
-                    api_key=blueConAPIClient.__apiKey,
-                    project_id=blueConAPIClient.__projectId,
-                    gcm_sender_id = blueConAPIClient.__senderId, 
-                    gms_app_id = blueConAPIClient.__appId,
-                    android_package_name=blueConAPIClient.__packageName,
-                    android_package_cert=PACKAGE_CERT
-                )
-                asyncio.run(blueConAPIClient.__notificationInfoStorage.storeCredentials(credentials))
-            
-            blueConAPIClient.deviceId = credentials["fcm"]["token"]
-            asyncio.run(blueConAPIClient.registerAppToken(True))
-            
-            received_persistent_ids = asyncio.run(blueConAPIClient.__notificationInfoStorage.retrievePersistentIds())
-
-            if received_persistent_ids is None:
-                blueConAPIClient.receiver = PushReceiver(credentials)
-            else:
-                blueConAPIClient.receiver = PushReceiver(credentials, received_persistent_ids)
 
             blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
         
@@ -227,7 +229,7 @@ class BlueConAPI:
                                     headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 responseJson = await response.json()
             callLogs: List[CallLog] = [callLog for callLog in map(CallLog, responseJson) if callLog.deviceId == deviceId and callLog.photoId is not None]
-            latestCallLog : CallLog | None = max(callLogs or None, key = lambda x: x.getCallDate())
+            latestCallLog : CallLog | None = max(callLogs, key = lambda x: x.getCallDate(), default=None)
 
             if latestCallLog is not None:
                 async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/photocall',
