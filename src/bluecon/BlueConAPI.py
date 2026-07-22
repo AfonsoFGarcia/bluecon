@@ -3,8 +3,11 @@ import aiohttp
 import base64
 import json
 import hashlib
+import logging
 from typing import Callable, List
 from threading import Thread
+
+_LOGGER = logging.getLogger(__name__)
 
 from bluecon.model.AccessDoor import AccessDoor
 from bluecon.model.Pairing import Pairing
@@ -168,6 +171,7 @@ class BlueConAPI:
             return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
 
         def on_notification(blueConAPIClient: BlueConAPI, notification: dict, data_message):
+            _LOGGER.debug("Received FCM notification: %s", notification)
             idstr = data_message.persistent_id
             received_persistent_ids = []
 
@@ -175,14 +179,25 @@ class BlueConAPI:
             received_persistent_ids = run_in_event_loop(blueConAPIClient.__notificationInfoStorage.retrievePersistentIds())
 
             if received_persistent_ids is not None and any(idstr in x for x in received_persistent_ids):
+                _LOGGER.debug("Ignoring already-seen notification %s", idstr)
                 return
 
             # TODO I commented this because it fails for me in Home Assistant
             #run_in_event_loop(blueConAPIClient.__notificationInfoStorage.storePersistentId(idstr))
 
-            blueConNotification = NotificationBuilder.fromNotification(notification, data_message.id)
-            run_in_event_loop(blueConAPIClient.acknowledgeNotification(blueConNotification))
-            blueConAPIClient.notificationCallback(blueConNotification)
+            try:
+                blueConNotification = NotificationBuilder.fromNotification(notification, data_message.id)
+                run_in_event_loop(blueConAPIClient.acknowledgeNotification(blueConNotification))
+                blueConAPIClient.notificationCallback(blueConNotification)
+            except Exception:
+                _LOGGER.exception("Failed to process FCM notification: %s", notification)
+
+        def receiver_listen(blueConAPIClient: BlueConAPI):
+            try:
+                _LOGGER.info("FCM push receiver starting to listen")
+                blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
+            except Exception:
+                _LOGGER.exception("FCM push receiver stopped unexpectedly")
 
         async def listener_thread(blueConAPIClient: BlueConAPI):
             def buildPackageCert():
@@ -198,19 +213,30 @@ class BlueConAPI:
 
             credentials = await blueConAPIClient.__notificationInfoStorage.retrieveCredentials()
             if credentials is None:
-                credentials = AndroidFCM.register(
-                    api_key=blueConAPIClient.__apiKey,
-                    project_id=blueConAPIClient.__projectId,
-                    gcm_sender_id = blueConAPIClient.__senderId, 
-                    gms_app_id = blueConAPIClient.__appId,
-                    android_package_name=blueConAPIClient.__packageName,
-                    android_package_cert=PACKAGE_CERT
-                )
+                _LOGGER.info("No cached FCM credentials found, registering with Google/Firebase")
+                try:
+                    credentials = AndroidFCM.register(
+                        api_key=blueConAPIClient.__apiKey,
+                        project_id=blueConAPIClient.__projectId,
+                        gcm_sender_id = blueConAPIClient.__senderId,
+                        gms_app_id = blueConAPIClient.__appId,
+                        android_package_name=blueConAPIClient.__packageName,
+                        android_package_cert=PACKAGE_CERT
+                    )
+                except Exception:
+                    _LOGGER.exception("FCM registration failed, notifications will not work")
+                    return
                 await blueConAPIClient.__notificationInfoStorage.storeCredentials(credentials)
-            
+            else:
+                _LOGGER.info("Using cached FCM credentials")
+
             blueConAPIClient.deviceId = credentials["fcm"]["token"]
-            await blueConAPIClient.registerAppToken(True)
-            
+            registered = await blueConAPIClient.registerAppToken(True)
+            if not registered:
+                _LOGGER.error("Failed to register this device's FCM token with Fermax, notifications will not arrive")
+            else:
+                _LOGGER.info("Registered FCM token with Fermax successfully")
+
             received_persistent_ids = await blueConAPIClient.__notificationInfoStorage.retrievePersistentIds()
 
             if received_persistent_ids is None:
@@ -219,9 +245,9 @@ class BlueConAPI:
                 blueConAPIClient.receiver = PushReceiver(credentials, received_persistent_ids)
 
             if hass:
-                hass.async_add_executor_job(blueConAPIClient.receiver.listen, on_notification, blueConAPIClient)
+                hass.async_add_executor_job(receiver_listen, blueConAPIClient)
             else:
-                blueConAPIClient.receiver.listen(on_notification, blueConAPIClient)
+                receiver_listen(blueConAPIClient)
         await listener_thread(self)
     
     async def stopNotificationListener(self) -> bool:
@@ -258,5 +284,40 @@ class BlueConAPI:
                                    headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
                 if response.status == 200:
                     return DeviceInfo(await response.json())
+                else:
+                    return None
+
+    async def getCallHistory(self, deviceId: str, limit: int = 20) -> List[CallLog]:
+        """Get the most recent call history entries for the provided device, newest first"""
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'{FERMAX_BASE_URL}/callManager/api/v1/callregistry/participant',
+                                    params = {
+                                        "appToken": deviceId,
+                                        "callRegistryType": "all"
+                                    },
+                                    headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+                responseJson = await response.json()
+
+        callLogs: List[CallLog] = [callLog for callLog in map(CallLog, responseJson) if callLog.deviceId == deviceId]
+        callLogs.sort(key = lambda x: x.getCallDate(), reverse = True)
+        return callLogs[:limit]
+
+    async def getFirmwareUpdateStatus(self, deviceId: str) -> dict | None:
+        """Get the firmware update status for the provided device.
+
+        The response shape returned by Fermax's API for this endpoint has not been
+        fully verified yet; this returns the raw JSON payload as-is so callers can
+        inspect it and the mapping can be refined once confirmed against a real device.
+        """
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'{FERMAX_BASE_URL}/update/api/v1/firmware-update-process',
+                                    params = {
+                                        "deviceId": deviceId
+                                    },
+                                    headers = (await self.__getOrRefreshOAuthToken()).getBearerAuthHeader()) as response:
+                if response.status == 200:
+                    return await response.json()
                 else:
                     return None
