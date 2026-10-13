@@ -1,5 +1,7 @@
 # Quickstart
 
+All the examples below use `await`, so they must run inside an `async` function.
+
 Create the connection to Fermax Blue servers (without notification setup):
 
 ```python
@@ -49,7 +51,7 @@ openDoorResult = await blueConAPIClient.openDoor(firstDoor.deviceId, firstDoor.a
 Get device info:
 
 ```python
-blueConAPIClient.getDeviceInfo(firstDoor.deviceId)
+deviceInfo = await blueConAPIClient.getDeviceInfo(firstDoor.deviceId)
 ```
 
 ## Receiving ringing notifications
@@ -86,20 +88,46 @@ blueConAPIClient = await BlueConAPI.create(
 )
 ```
 
-Listen to notifications:
+Listen to notifications. `startNotificationListener` is a coroutine: it registers the FCM token with Fermax and starts the push receiver.
 
 ```python
-blueConAPIClient.startNotificationListener()
+await blueConAPIClient.startNotificationListener()
 ```
 
-Stop listening to notifications:
+The callback receives a `CallNotification` when someone rings (with `deviceId` and `accessDoorKey`), and a `CallEndNotification` when the call finishes or is missed.
+
+When using the library from Home Assistant, pass the `hass` object so the receiver runs in an executor job and the callbacks are scheduled on its event loop:
 
 ```python
-blueConAPIClient.stopNotificationListener()
+await blueConAPIClient.startNotificationListener(hass)
 ```
 
-Get last captured picture:
+Stop listening to notifications. This deactivates the token with Fermax:
 
 ```python
-blueConAPIClient.getLastPicture(firstDoor.deviceId)
+await blueConAPIClient.stopNotificationListener()
 ```
+
+## Call registry and photos
+
+The call registry is scoped by the FCM token of the app, so these calls only return data after the notification listener has started.
+
+Get the most recent calls of a device, newest first. Each entry has `callDate` and, when Fermax took a photo, a `photoId`:
+
+```python
+callLogs = await blueConAPIClient.getCallHistory(firstDoor.deviceId, limit=10)
+```
+
+Download the photo of a call:
+
+```python
+image = await blueConAPIClient.getCallPhoto(callLogs[0].photoId)
+```
+
+Get the last captured picture:
+
+```python
+image = await blueConAPIClient.getLastPicture(firstDoor.deviceId)
+```
+
+Fermax can take a few seconds to add the photo of a call to its registry, so right after a `CallEndNotification` the new photo may not be there yet. Retry a few times a few seconds apart.
